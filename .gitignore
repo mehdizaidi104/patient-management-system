@@ -1,0 +1,25 @@
+# === Secrets ===
+# Never, ever commit this file!
+.env
+
+# === Java/Maven ===
+# Compiled class files
+target/
+*.jar
+
+# Log files
+*.log
+
+# IDE files (IntelliJ)
+.idea/
+*.iml
+*.iws
+
+# === Node.js ===
+# The 100,000+ files you don't need
+node_modules/
+npm-debug.log
+
+# === OS Files ===
+.DS_Store
+Thumbs.db

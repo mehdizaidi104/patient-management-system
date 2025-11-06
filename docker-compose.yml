@@ -1,0 +1,109 @@
+services:
+  # 1. DB
+  db:
+    image: postgres:16-alpine
+    container_name: patient-db
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5433:5432"
+    volumes:
+      - patient-db-data:/var/lib/postgresql/data
+
+  # 2. Discovery
+  discovery:
+    container_name: discovery-service
+    build:
+      context: ./discovery-service
+      dockerfile: Dockerfile
+    ports:
+      - "8761:8761"
+
+  # 3. Auth
+  auth:
+    container_name: auth-service
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASS}
+      EUREKA_SERVICE_URL: http://discovery:8761/eureka/
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      - db
+      - discovery
+
+  # 4. Gateway
+  gateway:
+    container_name: gateway-service
+    build:
+      context: ./gateway-service
+      dockerfile: Dockerfile
+    ports:
+      - "9000:9000"
+    environment:
+      EUREKA_SERVICE_URL: http://discovery:8761/eureka/
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      - discovery
+      - api   
+      - auth  
+
+  # 5. Patient API
+  api:
+    container_name: patient-api
+    build:
+      context: ./patient-service
+      dockerfile: Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASS}
+      EUREKA_SERVICE_URL: http://discovery:8761/eureka/
+    depends_on:
+      - db
+      - discovery
+
+  # 6. Billing Service
+  billing:
+    container_name: billing-service
+    build:
+      context: ./billing-service
+      dockerfile: Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASS}
+      EUREKA_SERVICE_URL: http://discovery:8761/eureka/
+    depends_on:
+      - db
+      - discovery
+      
+  # === ADDED: 7. Notifications Service ===
+  notifications:
+    container_name: notifications-service # <-- Corrected spelling
+    build:
+      context: ./notifications-service # <-- Corrected spelling
+      dockerfile: Dockerfile
+    environment:
+      EUREKA_SERVICE_URL: http://discovery:8761/eureka/
+    depends_on:
+      - discovery
+  
+  # 8. Frontend
+  frontend:
+    container_name: patient-frontend
+    build:
+      context: ./patient-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - gateway # The frontend only waits for the gateway
+
+volumes:
+  patient-db-data:
